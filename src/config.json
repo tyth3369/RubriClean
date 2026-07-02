@@ -1,5 +1,5 @@
 {
-  "_comment": "RubriClean v3 配置文件 — 所有可调参数集中管理",
+  "_comment": "RubriClean v3.1 配置文件 — 所有可调参数集中管理",
   "_note": "HSV 范围格式为 [H, S, V]，OpenCV H: 0-180, S: 0-255, V: 0-255",
 
   "hsv": {
@@ -10,7 +10,7 @@
   },
 
   "rgb_diff": {
-    "threshold": 8,
+    "threshold": 15,
     "r_min": 50
   },
 
@@ -33,6 +33,12 @@
 
   "safety": {
     "gray_tolerance": 5
+  },
+
+  "fringe_absorption": {
+    "_comment": "Light-gated 晕影吸收 — 清除红笔周围浅色扫描过渡带",
+    "dilate_px": 13,
+    "light_thresh": 200
   },
 
   "inpainting": {

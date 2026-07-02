@@ -1,6 +1,6 @@
 """
 RubriClean v3.1 — 红笔痕迹检测
-HSV + RGB + 局部红度 + 笔画膨胀 (diff=15)
+HSV + RGB + 局部红度 + 笔画膨胀 (diff=15) + Light-gated 晕影吸收 + 白色填充
 适用场景: 扫描质量差、红笔偏黑偏暗
 """
 
@@ -111,6 +111,10 @@ CONFIG = {
     # --- Inpainting ---
     "inpaint_radius": 5,       # 修复半径
     "inpaint_method": cv2.INPAINT_TELEA,  # Telea 算法
+
+    # --- Light-gated 晕影吸收 ---
+    "fringe_dilate_px": 13,       # 膨胀半径 (px)
+    "fringe_light_thresh": 200,   # min(R,G,B) > 此值才吸收，保护黑笔笔画
 }
 
 
@@ -416,6 +420,64 @@ def inpaint_red(image, mask, config=None, two_pass=True):
     return cleaned, residual
 
 
+def absorb_fringe(img, mask, config=None):
+    """
+    Light-gated 晕影吸收。
+
+    红笔扫描后在笔画周围会产生一圈浅色过渡像素（RGB 228-250），
+    这些像素不是红色（不满足检测阈值），但靠近纯白填充后会形成可见的"边框"。
+    通过对 mask 做膨胀，但只吸收浅色像素（min(R,G,B) > light_thresh），
+    捕获晕影的同时保护暗色黑笔不被误吞。
+
+    Args:
+        img:   BGR 原图
+        mask:  红笔二值掩码 (0/255)
+        config: 配置字典
+
+    Returns:
+        扩展后的掩码
+    """
+    cfg = config or CONFIG
+    dilate_px = cfg.get("fringe_dilate_px", 13)
+    light_thresh = cfg.get("fringe_light_thresh", 200)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ksize = dilate_px * 2 + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
+    expanded = cv2.dilate(mask, kernel, iterations=1)
+
+    # 只吸收浅色像素（晕影），跳过暗色（黑笔笔画）
+    light = (gray > light_thresh).astype(np.uint8) * 255
+    absorbed = cv2.bitwise_and(expanded, light)
+
+    return cv2.bitwise_or(mask, absorbed)
+
+
+def white_fill(img, mask):
+    """白色填充修复"""
+    white = np.ones_like(img) * 255
+    return np.where(mask[:, :, np.newaxis] > 0, white, img)
+
+
+def process(img, config=None):
+    """
+    一站式处理：检测红笔 → 吸收晕影 → 白色填充
+
+    Args:
+        img:    BGR 图片 (numpy array)
+        config: 配置字典 (可选)
+
+    Returns:
+        cleaned: 清除红笔后的 BGR 图片
+        mask:    最终使用的掩码
+        info:    调试信息字典
+    """
+    mask, info = detect_red_pen(img, config)
+    mask = absorb_fringe(img, mask, config)
+    cleaned = white_fill(img, mask)
+    return cleaned, mask, info
+
+
 # ============================================================
 # 命令行测试入口
 # ============================================================
@@ -441,15 +503,13 @@ if __name__ == "__main__":
 
     print(f"  尺寸: {img.shape[1]}x{img.shape[0]}")
 
-    mask, info = detect_red_pen(img)
-    cleaned, residual_mask = inpaint_red(img, mask)
+    cleaned, mask, info = process(img)
 
     print(f"  HSV 掩码像素:     {info['hsv_pixels']:>8d}")
     print(f"  RGB 掩码像素:     {info['rgb_pixels']:>8d}")
     print(f"  局部红度像素:     {info['local_pixels']:>8d}")
     print(f"  笔画膨胀新增:     {info['expanded_pixels']:>8d}")
-    print(f"  最终掩码像素:     {info['final_pixels']:>8d}")
-    print(f"  二次清理残留:     {cv2.countNonZero(residual_mask):>8d}")
+    print(f"  最终掩码像素:     {cv2.countNonZero(mask):>8d}")
 
     base = os.path.splitext(os.path.basename(img_path))[0]
     out_dir = os.path.join(os.path.dirname(__file__), "..", "output")
@@ -457,5 +517,4 @@ if __name__ == "__main__":
 
     cv2.imwrite(os.path.join(out_dir, f"{base}_mask.png"), mask)
     cv2.imwrite(os.path.join(out_dir, f"{base}_clean.jpg"), cleaned)
-    cv2.imwrite(os.path.join(out_dir, f"{base}_residual.png"), residual_mask)
     print(f"  结果已保存到: {out_dir}/")
