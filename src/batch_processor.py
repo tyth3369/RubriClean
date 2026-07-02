@@ -14,7 +14,7 @@ import numpy as np
 import argparse
 from datetime import datetime
 
-from red_mask import detect_red_pen, inpaint_red, load_config
+from red_mask_deep import detect_red_pen, inpaint_red, load_config
 from tqdm import tqdm
 
 

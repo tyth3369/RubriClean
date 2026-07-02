@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
-from red_mask import detect_red_pen, inpaint_red, CONFIG
+from red_mask_deep import detect_red_pen, inpaint_red, CONFIG
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "output")
 SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "samples")

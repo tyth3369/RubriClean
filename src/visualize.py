@@ -89,7 +89,7 @@ def make_mask_detail(original, info, output_path):
 # ============================================================
 if __name__ == "__main__":
     import sys
-    from red_mask import detect_red_pen, inpaint_red
+    from red_mask_deep import detect_red_pen, inpaint_red
 
     if len(sys.argv) < 2:
         print("用法: python visualize.py <image_path> [output_subdir]")

@@ -9,7 +9,7 @@ import os
 import cv2
 import argparse
 
-from red_mask import detect_red_pen, inpaint_red, load_config, CONFIG
+from red_mask_deep import detect_red_pen, inpaint_red, load_config, CONFIG
 
 # 日志文件路径
 LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "logs", "pipeline.log")

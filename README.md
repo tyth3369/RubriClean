@@ -9,15 +9,15 @@
 | 版本 | 文件 | 状态 |
 |------|------|:--:|
 | **Standard** | `src/red_mask_standard.py` | ✅ **日常推荐** |
-| **v3.1** | `src/red_mask.py` | ✅ 偏黑红笔场景 |
+| **Deep** | `src/red_mask_deep.py` | ✅ 偏黑红笔场景 |
 
 ### Standard — 日常通用
 
 `R-G>15 & R-B>15` 判定红色 → Light-gated 晕影吸收 → 白色填充。几乎不误伤印刷文字，适合绝大多数场景。
 
-### v3.1 — 偏黑红笔
+### Deep — 偏黑红笔
 
-HSV + RGB 差值 + 局部红度 + 笔画膨胀（`diff=15`）→ Light-gated 晕影吸收 → 白色填充。当扫描质量差、红笔明显偏黑时使用。
+HSV + RGB 差值 + 局部红度 + 笔画膨胀（`diff=15`）→ Light-gated 晕影吸收 → 白色填充。当扫描质量差、红笔明显偏黑，Standard 漏检时使用。
 
 ### Light-gated 晕影吸收（v4 新增）
 
@@ -59,7 +59,7 @@ cv2.imwrite('clean.jpg', cleaned)
 
 # v3.1（偏黑红笔场景）
 python -c "
-from src.red_mask import process
+from src.red_mask_deep import process
 import cv2
 img = cv2.imread('homework.jpg')
 cleaned, mask, info = process(img)
@@ -73,7 +73,7 @@ cv2.imwrite('clean.jpg', cleaned)
 RubriClean/
 ├── src/
 │   ├── red_mask_standard.py   # Standard — 日常推荐
-│   ├── red_mask.py            # v3.1 — 偏黑红笔
+│   ├── red_mask_deep.py       # Deep — 偏黑红笔
 │   ├── visualize.py           # 可视化工具
 │   ├── pipeline.py            # 单图 CLI
 │   └── batch_processor.py     # PDF 批量处理

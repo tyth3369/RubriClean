@@ -1,7 +1,7 @@
 """
-RubriClean v3.1 — 红笔痕迹检测
+RubriClean Deep — 深度红笔检测
 HSV + RGB + 局部红度 + 笔画膨胀 (diff=15) + Light-gated 晕影吸收 + 白色填充
-适用场景: 扫描质量差、红笔偏黑偏暗
+适用场景: 扫描质量差、红笔偏黑偏暗，Standard 漏检时使用
 """
 
 import cv2
