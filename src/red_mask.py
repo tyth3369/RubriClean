@@ -1,7 +1,7 @@
 """
-红笔痕迹检测与清除模块
-方案 C：HSV + RGB 混合检测 + Inpainting 修复
-v3 — 生产基线
+RubriClean v3.1 — 红笔痕迹检测
+HSV + RGB + 局部红度 + 笔画膨胀 (diff=15)
+适用场景: 扫描质量差、红笔偏黑偏暗
 """
 
 import cv2
@@ -71,7 +71,7 @@ CONFIG = {
     "hsv_red2_upper": (180, 255, 255),
 
     # --- RGB 差值检测（偏黑红笔）---
-    "rgb_diff_threshold": 8,   # R - max(G,B) 最小差值
+    "rgb_diff_threshold": 15,  # v3.1: 8→15, 与Senior对齐, 减少印刷字误检
     "rgb_r_min": 50,           # R 通道最小值，排除纯黑像素
 
     # --- 局部相对红度检测 ---
@@ -80,11 +80,26 @@ CONFIG = {
     "local_proximity": 5,      # 必须靠近已知红色像素的半径
 
     # --- 笔画膨胀 ---
-    "stroke_dilate_iter": 3,   # 膨胀迭代次数
-    "stroke_dilate_kernel": 5, # 膨胀核大小
+    "stroke_dilate_iter": 3,
+    "stroke_dilate_kernel": 5,
+    # 自适应双通道膨胀 (改进C)
+    "use_dual_dilate": False,       # 启用双通道膨胀
+    "dual_dilate_fine_kernel": 3,   # 细笔画核
+    "dual_dilate_fine_iter": 1,     # 细笔画迭代
+    "dual_dilate_coarse_kernel": 7, # 粗笔画核
+    "dual_dilate_coarse_iter": 2,   # 粗笔画迭代
 
     # --- 间隙填充 ---
     "gap_close_kernel": 7,     # 最终闭运算核大小
+
+    # --- CLAHE 预处理 (改进A) ---
+    "use_clahe": False,
+    "clahe_clip": 2.0,
+    "clahe_tile": [8, 8],
+
+    # --- 连通域去噪 (改进B) ---
+    "use_component_filter": False,  # 是否启用连通域过滤
+    "component_min_area": 10,       # 最小连通域面积（小于此值视为噪声）
 
     # --- 安全阈值 ---
     "safety_gray_tolerance": 5,  # R/G/B 差异小于此值视为纯灰度，绝不删除
@@ -97,6 +112,25 @@ CONFIG = {
     "inpaint_radius": 5,       # 修复半径
     "inpaint_method": cv2.INPAINT_TELEA,  # Telea 算法
 }
+
+
+def preprocess_clahe(image, config=None):
+    """
+    CLAHE 自适应对比度增强 — 改进 A。
+    在 LAB 色彩空间对亮度通道做局部直方图均衡化，
+    让不同扫描亮度的页面统一到相似水平。
+    """
+    cfg = config or CONFIG
+    if not cfg.get("use_clahe", False):
+        return image
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(
+        clipLimit=cfg.get("clahe_clip", 2.0),
+        tileGridSize=tuple(cfg.get("clahe_tile", [8, 8])))
+    l = clahe.apply(l)
+    lab = cv2.merge([l, a, b])
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
 
 def detect_red_hsv(image, config=None):
@@ -189,21 +223,15 @@ def detect_red_local_contrast(image, seed_mask, config=None):
 
 def expand_along_strokes(mask, image, config=None):
     """
-    沿笔画方向膨胀掩码：把检测到的红色区域向外扩展，
-    覆盖同属一笔画但颜色偏黑的部分。
+    沿笔画方向膨胀掩码（改进C：双通道模式）。
+    默认：单通道固定核膨胀。
+    双通道模式：细笔画用小核保守膨胀 + 粗笔画用大核激进膨胀 → 取并集。
 
     安全机制：只扩展到"偏暗"的像素（笔画区域），不扩展到亮背景。
     """
     cfg = config or CONFIG
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    k_size = cfg["stroke_dilate_kernel"]
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
-    expanded = cv2.dilate(mask, kernel, iterations=cfg["stroke_dilate_iter"])
-
-    # 只保留暗像素区域
     dark_pixels = (gray < 180).astype(np.uint8) * 255
-    expanded = cv2.bitwise_and(expanded, dark_pixels)
 
     # 排除纯灰度像素（黑字保护）
     r = image[:, :, 2].astype(np.int16)
@@ -213,7 +241,29 @@ def expand_along_strokes(mask, image, config=None):
     is_gray = ((abs(r - g) <= gray_tol) &
                (abs(g - b) <= gray_tol) &
                (abs(r - b) <= gray_tol))
-    expanded = cv2.bitwise_and(expanded, (~is_gray).astype(np.uint8) * 255)
+    not_gray = (~is_gray).astype(np.uint8) * 255
+
+    if cfg.get("use_dual_dilate", False):
+        # 细笔画通道：小核保守
+        k_fine = cfg["dual_dilate_fine_kernel"]
+        kernel_fine = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_fine, k_fine))
+        fine = cv2.dilate(mask, kernel_fine, iterations=cfg["dual_dilate_fine_iter"])
+
+        # 粗笔画通道：大核激进
+        k_coarse = cfg["dual_dilate_coarse_kernel"]
+        kernel_coarse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_coarse, k_coarse))
+        coarse = cv2.dilate(mask, kernel_coarse, iterations=cfg["dual_dilate_coarse_iter"])
+
+        # 合并两通道
+        expanded = cv2.bitwise_or(fine, coarse)
+    else:
+        k_size = cfg["stroke_dilate_kernel"]
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
+        expanded = cv2.dilate(mask, kernel, iterations=cfg["stroke_dilate_iter"])
+
+    # 安全约束
+    expanded = cv2.bitwise_and(expanded, dark_pixels)
+    expanded = cv2.bitwise_and(expanded, not_gray)
 
     new_only = cv2.bitwise_and(expanded, cv2.bitwise_not(mask))
     return cv2.bitwise_or(mask, new_only), new_only
@@ -266,6 +316,17 @@ def merge_masks(mask_hsv, mask_rgb, mask_local=None, border_mask=None, config=No
         cv2.MORPH_ELLIPSE, (cfg["gap_close_kernel"], cfg["gap_close_kernel"]))
     merged = cv2.morphologyEx(merged, cv2.MORPH_CLOSE, gap_kernel)
 
+    # 连通域去噪（改进B）：去除微小孤立碎片
+    if cfg.get("use_component_filter", False):
+        min_area = cfg.get("component_min_area", 10)
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+            merged, connectivity=8)
+        clean = np.zeros_like(merged)
+        for i in range(1, num_labels):
+            if stats[i, cv2.CC_STAT_AREA] >= min_area:
+                clean[labels == i] = 255
+        merged = clean
+
     return merged
 
 
@@ -304,6 +365,9 @@ def detect_red_pen(image, config=None):
         HSV + RGB 差值 + 局部相对红度 → 融合 → 笔画膨胀 → 形态学优化
     """
     cfg = config or CONFIG
+
+    # Step 0: CLAHE 预处理（改进A）
+    image = preprocess_clahe(image, cfg)
 
     # Step 1: HSV + RGB 差值检测
     mask_hsv = detect_red_hsv(image, cfg)

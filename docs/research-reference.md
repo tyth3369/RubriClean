@@ -1,6 +1,25 @@
 # 红笔痕迹清除 — 研究资料汇总
 
-> 整理时间：2026-06-26 | 整理目的：为 Phase D（深度学习方案）提供文献基础
+> 最后更新：2026-06-29 | 本次更新：新增 YIQ/LAB 对比测试 + 更多开源方案
+
+---
+
+## 零、2026-06-29 更新：YIQ / LAB 色彩空间测试结论
+
+**测试目的**：验证 YIQ Q通道 和 LAB A通道 能否为 v3 提供补充检测能力。
+
+**测试页面**：page_080（红笔文字）、page_100（对勾）
+
+**结果**：
+
+| 页面 | v3 (HSV+RGB) | YIQ Q通道 | LAB A通道 | YIQ新增 | LAB新增 |
+|:----:|:----------:|:---------:|:---------:|:------:|:------:|
+| 080 | 28,029 | 6,296 | 12,505 | **0** | **0** |
+| 100 | 26,489 | — | — | **0** | **0** |
+
+**结论**：YIQ 和 LAB 检测到的所有像素，v3 已经全覆盖。这两个色彩空间对 v3 是冗余的。
+
+**原因**：v3 的 HSV + RGB 差值 + 局部红度 组合已经在色彩维度上做到了充分覆盖。颜色检测的天花板是物理极限（扫描后纯黑的像素不携带颜色信息），而不是色彩空间选择问题。
 
 ---
 
@@ -134,7 +153,93 @@ iopaint start --model=lama --device=cpu --port=8080
 
 ---
 
-## 四、对下一步的建议
+---
+
+## 五、新增发现（2026-06-29）
+
+### 1. EraseNet 改进版 — 百度网盘 AI 大赛手写擦除第 1 名 ⭐⭐⭐
+
+| 项目 | 内容 |
+|------|------|
+| 仓库 | [github.com/zdyshine/Baidu-netdisk-AI-Image-processing-Challenge-handwriting](https://github.com/zdyshine/Baidu-netdisk-AI-Image-processing-Challenge-handwriting) |
+
+**方案特点**：双模型融合，去掉 GAN 损失避免幻觉伪影。512×512 分块推理 + 镜像填充 + 中心裁剪融合。
+
+**关键发现**：该方案也验证了"GAN 对 OCR 准确率有负面影响"——与我们之前 BiSeNetV2 论文中的结论一致。
+
+---
+
+### 2. Doc-Image-Tool — 文档图像处理工具集
+
+| 项目 | 内容 |
+|------|------|
+| 仓库 | [github.com/jiangnanboy/Doc-Image-Tool](https://github.com/jiangnanboy/Doc-Image-Tool) |
+
+**已有功能**：漂白、方向矫正、清晰增强、**笔记去噪美化**、去阴影、扭曲矫正、切边增强。
+
+"笔记去噪美化"功能可能对红笔清除有参考价值，但该功能还在计划中（标注为 TODO）。
+
+---
+
+### 3. 去除手写注释项目
+
+| 项目 | 仓库 |
+|------|------|
+| Removing Hand-Written Annotations | [github.com/asp2809](https://github.com/asp2809/Removing-Hand-Written-Annotations) |
+| WPI Inpainting | [github.com/hendraet/WPI_inpainting](https://github.com/hendraet/WPI_inpainting) |
+
+WPI Inpainting 是专门针对文档手写移除的，使用 Inpainting 技术。值得在 GPU 机器上下载测试。
+
+---
+
+### 4. CN118366179A 专利 — RGB+HSV 双通道红笔提取
+
+**专利名**：《一种提取红笔批改答题痕迹的方法、设备及介质》（2024）
+
+**核心方法**：
+- 同时进行 RGB 双色掩膜和 HSV 色相红色提取
+- **SIFT 特征匹配**融合两路结果
+- **改进的 DBSCAN** 去噪
+
+**与 v3 的关系**：v3 已经实现了 RGB+HSV 融合，但 SIFT 匹配和 DBSCAN 去噪是两个可以尝试加入的优化方向。
+
+DBSCAN 去噪的思路：不再用固定大小的形态学核去噪，而是根据检测到的红笔像素的空间分布密度自动聚类，将低密度区域的孤立噪声点排除。这可能比当前 v3 的开闭运算更精准。
+
+---
+
+### 5. DocDiff — 扩散模型文档增强
+
+| 项目 | 内容 |
+|------|------|
+| 仓库 | [github.com/Royalvice/DocDiff](https://github.com/Royalvice/DocDiff) |
+| 论文 | ACM Multimedia 2023 |
+
+含 1597 个中文场景红色印章数据集 + 对应二值掩膜。轻量级扩散模型（128×128 分辨率下 BatchSize=64 仅需 12GB 显存）。可用于去水印、去印章。
+
+---
+
+### 6. Rapid Artefact Removal (2024)
+
+发表于 Scientific Reports，**无 ML、无参数调优**的 HSV+Otsu 自动阈值法，针对病理切片墨迹去除。思路可迁移到红笔清除——用 Otsu 自动阈值替代手动设定的 HSV 范围。
+
+---
+
+### 7. 夸克扫描王 — 商用 API
+
+[scan.quark.cn](https://scan.quark.cn) 提供图像去手写 API。商业产品，可作为效果参照基线。
+
+---
+
+## 六、对 v3 立即可尝试的优化方向
+
+基于本轮搜索，以下方向不需要深度学习、可以立即在 v3 上尝试：
+
+| 方向 | 来源 | 预期提升 | 风险 |
+|------|------|:------:|------|
+| **DBSCAN 自适应去噪** | 专利 CN118366179A | 更精准去除噪声、保留笔画 | 低 |
+| **Otsu 自动阈值** | Rapid Artefact Removal (2024) | 减少手动调参、自适应不同扫描质量 | 低 |
+| **分级掩码膨胀** | EraseNet 训练策略 | 先粗后细分步膨胀，减少误扩 | 中 |
+| **SIFT 特征匹配验证** | 专利 CN118366179A | 利用空间特征二次确认红笔区域 | 中高 |
 
 ### 短期（Phase 4/5）：v3 生产化
 - 当前 v3 对 80%+ 的红笔痕迹有效，足够开始批量清洗数据

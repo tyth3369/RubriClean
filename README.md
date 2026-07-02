@@ -1,18 +1,37 @@
 # RubriClean
 
-作业扫描件红笔痕迹自动清除工具。从已批改/订正的作业扫描件中检测并清除红色笔迹（教师批改、标注、订正），还原学生原始答案。
+作业扫描件红笔痕迹自动清除工具。从已批改/订正的作业扫描件中检测并清除红色/蓝色笔迹。
 
-## 适用场景
+---
 
-- 构建批改作业大模型训练数据库时，需要学生原始错误答案（而非已被教师订正后的正确答案）
-- 批量清洗扫描件中的红色批改标记
+## ⚠️ 版本说明
+
+| 版本 | 文件 | 状态 |
+|------|------|:--:|
+| **Standard** | `src/red_mask_standard.py` | ✅ **当前推荐** |
+| **v3.1** | `src/red_mask.py` | ✅ 特殊场景 |
+| ~~v3~~ | — | ❌ **已淘汰** |
+
+### Standard — 日常通用
+
+`R-G>15 & R-B>15` 判定红色，白色填充修复。几乎不误伤印刷文字，适合绝大多数场景。
+
+### v3.1 — 偏黑红笔
+
+HSV + RGB 差值 + 局部红度 + 笔画膨胀（`diff=15`），白色填充修复。当扫描质量差、红笔明显偏黑时使用。
+
+### v3（已淘汰）
+
+~~HSV + RGB + 局部红度（`diff=8`）+ Inpainting。误检率偏高，修复有涂抹感。~~
+
+---
 
 ## 特性
 
-- **纯颜色检测**：HSV + RGB 混合算法，无需 GPU，CPU 即可运行
-- **偏黑红笔覆盖**：专门解决扫描后红色墨水偏暗/偏黑导致的漏检
-- **黑字保护**：三重安全检查机制，确保不误删黑色印刷文字和学生手写答案
-- **批量处理**：支持 PDF 拆分 + 逐页检测，处理速度 ~18 页/秒
+- **纯颜色检测**：无需 GPU，CPU 即可运行
+- **双版本**：Standard 日常使用，v3.1 应对偏黑红笔
+- **红蓝清除**：支持答案框内蓝笔清除（需 JSON 标注）
+- **批量处理**：支持 PDF 拆分 + 逐页检测
 - **零标注**：不需要训练数据，开箱即用
 
 ## 依赖
@@ -26,18 +45,20 @@
 ## 快速开始
 
 ```bash
-# 1. 创建虚拟环境
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 2. 安装依赖
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 3. 单张图片处理
-python src/pipeline.py samples/page_040.jpg
+# Standard（推荐日常使用）
+python -c "
+from src.red_mask_standard import detect_red_standard, white_fill
+import cv2
+img = cv2.imread('homework.jpg')
+mask = detect_red_standard(img)
+cv2.imwrite('clean.jpg', white_fill(img, mask))
+"
 
-# 4. PDF 批量处理
-python src/batch_processor.py 作业扫描件.pdf -o output/clean/
+# v3.1（偏黑红笔场景）
+python src/pipeline.py homework.jpg -o clean.jpg
 ```
 
 ## 项目结构
@@ -45,29 +66,17 @@ python src/batch_processor.py 作业扫描件.pdf -o output/clean/
 ```
 RubriClean/
 ├── src/
-│   ├── config.json          # 参数配置
-│   ├── red_mask.py          # 红笔检测与修复核心
-│   ├── visualize.py         # 可视化工具
-│   ├── pipeline.py          # 单图 CLI 工具
-│   └── batch_processor.py   # PDF 批量处理器
+│   ├── red_mask_standard.py   # Standard — 日常推荐
+│   ├── red_mask.py            # v3.1 — 偏黑红笔
+│   ├── visualize.py           # 可视化工具
+│   ├── pipeline.py            # 单图 CLI
+│   └── batch_processor.py     # PDF 批量处理
 ├── docs/
-│   ├── requirements.md      # 需求规格说明
-│   ├── technical-spec.md    # 技术方案
-│   └── research-reference.md # 研究资料
-├── samples/                 # 测试样例
-├── requirements.txt
+│   ├── requirements.md
+│   ├── technical-spec.md
+│   └── research-reference.md
 └── README.md
 ```
-
-## 技术方案
-
-采用方案 C：HSV + RGB 混合检测 + Telea Inpainting 修复。
-
-详细见 [docs/technical-spec.md](docs/technical-spec.md)。
-
-## 参数调优
-
-编辑 `src/config.json` 即可调整所有检测阈值，无需修改代码。
 
 ## License
 

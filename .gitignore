@@ -25,3 +25,7 @@ Thumbs.db
 
 # 日志文件
 logs/*.log
+
+# Deep learning exploration (local only)
+docs/phase-d-deeperase.md
+docs/prompt-for-gpu-machine.md
