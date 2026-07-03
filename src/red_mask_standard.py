@@ -8,12 +8,6 @@ import numpy as np
 
 CONFIG_STANDARD = {
     "min_diff": 15,              # R 必须同时大于 G 和 B 的最小差值
-    "blue_h_low": 100,           # 蓝色 HSV 范围 (用于蓝笔清除)
-    "blue_s_low": 70,
-    "blue_v_low": 50,
-    "blue_h_high": 130,
-    "blue_s_high": 255,
-    "blue_v_high": 255,
     # Light-gated 晕影吸收 — 清除红笔周围的浅色扫描过渡带
     "fringe_dilate_px": 13,       # 膨胀半径 (px)
     "fringe_light_thresh": 200,   # min(R,G,B) > 此值才吸收，保护黑笔笔画
@@ -29,15 +23,6 @@ def detect_red_standard(img, config=None):
     diff = cfg["min_diff"]
     mask = (r - g > diff) & (r - b > diff)
     return mask.astype(np.uint8) * 255
-
-
-def detect_blue_standard(img, config=None):
-    """标准版蓝笔检测：HSV 蓝色范围"""
-    cfg = config or CONFIG_STANDARD
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    lower = np.array([cfg["blue_h_low"], cfg["blue_s_low"], cfg["blue_v_low"]])
-    upper = np.array([cfg["blue_h_high"], cfg["blue_s_high"], cfg["blue_v_high"]])
-    return cv2.inRange(hsv, lower, upper)
 
 
 def absorb_fringe(img, mask, config=None):
