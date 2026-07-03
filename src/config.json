@@ -1,5 +1,5 @@
 {
-  "_comment": "RubriClean v3.1 配置文件 — 所有可调参数集中管理",
+  "_comment": "RubriClean v1.1 配置文件 — Standard / Deep 共用可调参数",
   "_note": "HSV 范围格式为 [H, S, V]，OpenCV H: 0-180, S: 0-255, V: 0-255",
 
   "hsv": {
@@ -39,6 +39,14 @@
     "_comment": "Light-gated 晕影吸收 — 清除红笔周围浅色扫描过渡带",
     "dilate_px": 13,
     "light_thresh": 200
+  },
+
+  "channel_balance": {
+    "_comment": "通道均衡填充 — 上下文感知，红黑交叉处保留暗色笔画",
+    "ink_gray_thresh": 80,
+    "ink_redness_max": 10,
+    "ink_dilate_px": 3,
+    "ink_min_area": 15
   },
 
   "inpainting": {
