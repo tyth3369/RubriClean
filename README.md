@@ -56,7 +56,7 @@ cleaned, mask = process(img)
 cv2.imwrite('clean.jpg', cleaned)
 "
 
-# v3.1（偏黑红笔场景）
+# Deep（偏黑红笔场景）
 python -c "
 from src.red_mask_deep import process
 import cv2
