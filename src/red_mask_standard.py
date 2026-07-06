@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 CONFIG_STANDARD = {
-    "min_diff": 15,              # R 必须同时大于 G 和 B 的最小差值
+    "min_diff": 20,              # R 必须同时大于 G 和 B 的最小差值
     # Light-gated 晕影吸收 — 清除红笔周围的浅色扫描过渡带
     "fringe_dilate_px": 13,       # 膨胀半径 (px)
     "fringe_light_thresh": 200,   # min(R,G,B) > 此值才吸收，保护黑笔笔画
