@@ -1,23 +1,21 @@
 """
-RubriClean Bridge — 激进版
-专为纯亮红笔场景设计，不考虑偏黑红笔，最大化红黑交叉修复效果。
-
-基于 Standard 的 R-G>15 & R-B>15 检测 + Light-gated 晕影吸收，
-使用激进的通道均衡参数：更大的近墨区膨胀，不做噪点过滤。
+RubriClean Bridge — 保守检测版
+比 Standard 更严格的红笔检测阈值 (min_diff=20)，
+在保持红黑交叉修复效果的同时，对偏黑/深红笔迹更安全。
 """
 import cv2
 import numpy as np
 
 CONFIG_BRIDGE = {
-    "min_diff": 15,              # R 必须同时大于 G 和 B 的最小差值
+    "min_diff": 20,              # 更严格的红笔判定，减少偏黑红笔的误检
     # Light-gated 晕影吸收
     "fringe_dilate_px": 13,
     "fringe_light_thresh": 200,
-    # 通道均衡 — 激进参数，最大化交叉修复
+    # 通道均衡 — 保守参数，安全优先
     "ink_gray_thresh": 80,        # gray < 此值判定为暗色墨水
     "ink_redness_max": 10,        # redness < 此值才是纯黑墨（非红笔）
-    "ink_dilate_px": 7,           # 激进膨胀，覆盖更宽的红笔交叉区
-    "ink_min_area": 0,            # 不做噪点过滤（无偏黑红笔场景不需要）
+    "ink_dilate_px": 3,           # 与 Standard 相同的近墨区膨胀
+    "ink_min_area": 15,           # 连通域过滤，过滤笔锋暗斑
 }
 
 
