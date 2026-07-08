@@ -1,6 +1,6 @@
 # RubriClean
 
-Automated red-pen removal from scanned homework assignments. Detects and erases teacher grading marks while preserving the student's original answers.
+Automated red-pen removal from scanned homework assignments. Detects and erases teacher grading marks and student correction while preserving the student's original answers.
 
 Built entirely with Claude Code.
 
@@ -11,7 +11,7 @@ Built entirely with Claude Code.
 | Version | File | Use Case |
 |---------|------|----------|
 | **Maestro** | `src/maestro.py` | ✅ **Auto — start here** |
-| Standard | `src/red_mask_standard.py` | General-purpose, safe baseline |
+| Standard v1.1 | `src/red_mask_standard.py` | General-purpose, safe baseline |
 | Bridge v1.2 | `src/red_mask_bridge_v2.py` | Crossing-heavy pages |
 | Bridge v1.1 | `src/red_mask_bridge.py` | Pure bright-red pen |
 | Deep | `src/red_mask_deep.py` | Dark-red / faded pen |
@@ -26,7 +26,7 @@ Decision is driven by stroke-continuation analysis: do black-ink strokes pass **
 
 No parameters. No manual version selection. Just drop in and go.
 
-### Standard — Safe general-purpose
+### Standard v1.1 — Safe general-purpose
 
 `R-G>15 & R-B>15` detection → fringe absorption → channel balance fill.
 
