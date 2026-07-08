@@ -1,0 +1,40 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 输出目录（处理结果不提交）
+output/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 日志
+logs/
+
+# Claude Code
+.claude/
+
+# 实验版（本地保留，不发布）
+src/red_mask_unified.py
+src/red_mask_v5.py
+src/red_mask_v6.py
+src/segment_handwriting.py
+
+# 私有文档
+docs/phase-d-deeperase.md
+docs/prompt-for-gpu-machine.md
