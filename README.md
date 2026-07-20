@@ -16,7 +16,7 @@ Built entirely with Claude Code.
 | Bridge v1.1 | `src/red_mask_bridge.py` | Pure bright-red pen |
 | Deep | `src/red_mask_deep.py` | Dark-red / faded pen |
 
-### Maestro v2.0 — Per-page auto-routing
+### Maestro — Per-page auto-routing
 
 Maestro analyzes each page and automatically picks the best strategy:
 - **Crossing-heavy** (dense handwriting, red over black ink) → Bridge v1.2 — best text preservation
